@@ -14,8 +14,8 @@ Requirements:
 
 3. Finally, streamlit is required to actually run the application through your web browser (kind of like xampp)
    -Install streamlit by using the command: pip install streamlit
-   -Run the application by using the command: streamlit run \path_to_code\graphhopper_proect.py
+   -Run the application by using the command: streamlit run \path_to_code\graphhopper_project.py
 
-Enjou :)
+Enjoy :)
 
    
