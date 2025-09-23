@@ -1,11 +1,14 @@
 import requests
 import urllib.parse
-import tkinter as tk
-from tkinter import ttk, scrolledtext, messagebox
+import ttkbootstrap as tb
+from ttkbootstrap.constants import *
+from tkinter import messagebox
 
+# --- API Config ---
 route_url = "https://graphhopper.com/api/1/route?"
-key = "571cae75-8241-46bb-af7f-62d0eaa4bc96"  # <-- replace or load from env
+key = "YOUR_API_KEY"   # ⚠️ replace with your real Graphhopper key
 
+# --- Geocoding function ---
 def geocoding(location, key):
     if location.strip() == "":
         return None, None, "Invalid location"
@@ -26,6 +29,7 @@ def geocoding(location, key):
     else:
         return None, None, "Error: " + json_data.get("message", "Unknown error")
 
+# --- Routing function ---
 def get_route():
     vehicle = vehicle_var.get()
     start = start_entry.get()
@@ -45,7 +49,7 @@ def get_route():
     response = requests.get(paths_url)
     data = response.json()
 
-    output_box.delete(1.0, tk.END)  # clear old text
+    output_box.delete(1.0, "end")  # clear old text
 
     if response.status_code == 200:
         km = data["paths"][0]["distance"] / 1000
@@ -54,42 +58,43 @@ def get_route():
         mins = int(data["paths"][0]["time"] / 1000 / 60 % 60)
         hrs = int(data["paths"][0]["time"] / 1000 / 60 / 60)
 
-        output_box.insert(tk.END, f"Route from {loc1} to {loc2} by {vehicle}\n")
-        output_box.insert(tk.END, f"Distance: {miles:.1f} miles / {km:.1f} km\n")
-        output_box.insert(tk.END, f"Duration: {hrs:02d}:{mins:02d}:{sec:02d}\n\n")
+        output_box.insert("end", f"Route from {loc1} to {loc2} by {vehicle}\n")
+        output_box.insert("end", f"Distance: {miles:.1f} miles / {km:.1f} km\n")
+        output_box.insert("end", f"Duration: {hrs:02d}:{mins:02d}:{sec:02d}\n\n")
 
         for step in data["paths"][0]["instructions"]:
             text = step["text"]
             dist = step["distance"] / 1000
-            output_box.insert(tk.END, f"- {text} ({dist:.1f} km)\n")
+            output_box.insert("end", f"- {text} ({dist:.1f} km)\n")
     else:
-        output_box.insert(tk.END, "Routing Error: " + data.get("message", "Unknown error"))
+        output_box.insert("end", "Routing Error: " + data.get("message", "Unknown error"))
 
 # --- GUI setup ---
-root = tk.Tk()
+root = tb.Window(themename="flatly")  # try: flatly, darkly, cyborg, journal, etc.
 root.title("Graphhopper Route Finder")
+root.geometry("600x500")
 
-frame = ttk.Frame(root, padding="10")
-frame.grid(row=0, column=0, sticky="nsew")
+frame = tb.Frame(root, padding=20)
+frame.pack(fill=BOTH, expand=True)
 
 # Inputs
-ttk.Label(frame, text="Vehicle:").grid(row=0, column=0, sticky="w")
-vehicle_var = tk.StringVar(value="car")
-vehicle_menu = ttk.Combobox(frame, textvariable=vehicle_var, values=["car", "bike", "foot"], state="readonly")
-vehicle_menu.grid(row=0, column=1)
+tb.Label(frame, text="Vehicle:").grid(row=0, column=0, sticky=W)
+vehicle_var = tb.StringVar(value="car")
+vehicle_menu = tb.Combobox(frame, textvariable=vehicle_var, values=["car", "bike", "foot"], state="readonly")
+vehicle_menu.grid(row=0, column=1, padx=5, pady=5)
 
-ttk.Label(frame, text="Start:").grid(row=1, column=0, sticky="w")
-start_entry = ttk.Entry(frame, width=40)
-start_entry.grid(row=1, column=1)
+tb.Label(frame, text="Start:").grid(row=1, column=0, sticky=W)
+start_entry = tb.Entry(frame, width=40)
+start_entry.grid(row=1, column=1, padx=5, pady=5)
 
-ttk.Label(frame, text="Destination:").grid(row=2, column=0, sticky="w")
-dest_entry = ttk.Entry(frame, width=40)
-dest_entry.grid(row=2, column=1)
+tb.Label(frame, text="Destination:").grid(row=2, column=0, sticky=W)
+dest_entry = tb.Entry(frame, width=40)
+dest_entry.grid(row=2, column=1, padx=5, pady=5)
 
-ttk.Button(frame, text="Get Route", command=get_route).grid(row=3, column=0, columnspan=2, pady=10)
+tb.Button(frame, text="Get Route", bootstyle=PRIMARY, command=get_route).grid(row=3, column=0, columnspan=2, pady=10)
 
 # Output box
-output_box = scrolledtext.ScrolledText(frame, width=60, height=20, wrap=tk.WORD)
+output_box = tb.ScrolledText(frame, width=60, height=20, wrap="word", bootstyle=INFO)
 output_box.grid(row=4, column=0, columnspan=2, pady=5)
 
 root.mainloop()
