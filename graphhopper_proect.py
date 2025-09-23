@@ -1,106 +1,68 @@
-import requests         #retrieve json from URL
-import urllib.parse     #manipulate json
+import streamlit as st
+import requests
+import urllib.parse
 
+route_url = "https://graphhopper.com/api/1/route?"
+key = "YOUR_API_KEY"   # ⚠️ replace with your Graphhopper key
 
-route_url = "https://graphhopper.com/api/1/route?"          # routing    
-key = "571cae75-8241-46bb-af7f-62d0eaa4bc96"                # Replace with your Graphhopper API key 
-
-def geocoding (location, key):
-    while location == "":
-        location = input("Enter the location again: ")
+# --- Geocoding ---
+def geocoding(location, key):
     geocode_url = "https://graphhopper.com/api/1/geocode?"
-    url = geocode_url + urllib.parse.urlencode({"q":location, "limit": "1","key":key})
-
+    url = geocode_url + urllib.parse.urlencode({"q": location, "limit": "1", "key": key})
     replydata = requests.get(url)
     json_data = replydata.json()
-    json_status = replydata.status_code
-    
 
-    if json_status == 200 and len(json_data["hits"]) !=0:
-        json_data = requests.get(url).json()
-        lat=(json_data["hits"][0]["point"]["lat"])
-        lng=(json_data["hits"][0]["point"]["lng"])
-        name = json_data["hits"][0]["name"]
-        value = json_data["hits"][0]["osm_value"]
-
-        if "country" in json_data["hits"][0]:
-            country = json_data["hits"][0]["country"]
-        else:
-            country=""
-
-        if "state" in json_data["hits"][0]:
-            state = json_data["hits"][0]["state"]
-        else:
-            state=""
-
-        if len(state) !=0 and len(country) !=0:
-            new_loc = name + ", " + state + ", " + country
-        elif len(state) !=0:
-            new_loc = name + ", " + country
-        else:
-            new_loc = name
-        print("Geocoding API URL for " + new_loc + " (Location Type: " + value + ")\n" + url)
+    if replydata.status_code == 200 and len(json_data["hits"]) != 0:
+        hit = json_data["hits"][0]
+        lat, lng = hit["point"]["lat"], hit["point"]["lng"]
+        name = hit["name"]
+        state = hit.get("state", "")
+        country = hit.get("country", "")
+        new_loc = f"{name}, {state}, {country}".strip(", ")
+        return lat, lng, new_loc
     else:
-        lat="null"
-        lng="null"
-        new_loc=location 
-        if json_status != 200:
-            print("Geocode API status: " + str(json_status) + "\nError message: " + json_data["message"]) 
-    return json_status,lat,lng,new_loc
+        return None, None, "Error: " + json_data.get("message", "Unknown error")
 
-while True:
-    print("\n+++++++++++++++++++++++++++++++++++++++++++++")
-    print("Vehicle profiles available on Graphhopper:")
-    print("+++++++++++++++++++++++++++++++++++++++++++++")
-    print("car, bike, foot")
-    print("+++++++++++++++++++++++++++++++++++++++++++++")
-    profile=["car", "bike", "foot"]
-    vehicle = input("Enter a vehicle profile from the list above: ")
-    if vehicle == "quit" or vehicle == "q":
-        break
-    elif vehicle in profile:
-        vehicle = vehicle
+# --- Streamlit UI ---
+st.set_page_config(page_title="Graphhopper Route Finder", layout="centered")
+st.title("🚗 Graphhopper Route Finder")
+
+vehicle = st.selectbox("Choose vehicle:", ["car", "bike", "foot"])
+start = st.text_input("Start Location", "")
+dest = st.text_input("Destination", "")
+
+if st.button("Get Route"):
+    if not start or not dest:
+        st.error("Please enter both start and destination.")
     else:
-        vehicle = "car"
-        print("No valid vehicle profile was entered. Using the car profile.") 
-    loc1 = input("Starting Location: ")
-    if loc1 == "quit" or loc1 == "q":
-        break 
-    orig = geocoding(loc1, key)
-   
-    
-    loc2 = input("Destination: ")
-    if loc2 == "quit" or loc2 == "q":
-        break
-    dest = geocoding(loc2, key)
-    print("=================================================")
-    if orig[0] == 200 and dest[0] == 200: 
-        op="&point="+str(orig[1])+"%2C"+str(orig[2])
-        dp="&point="+str(dest[1])+"%2C"+str(dest[2])
-        paths_url = route_url + urllib.parse.urlencode({"key":key, "vehicle":vehicle}) + op + dp
-        paths_status = requests.get(paths_url).status_code
-        paths_data = requests.get(paths_url).json()
-        print("Routing API Status: " + str(paths_status) + "\nRouting API URL:\n" + paths_url)
-        print("=================================================")
-        print("Directions from " + orig[3] + " to " + dest[3] + " by " + vehicle) 
-        print("=================================================")
-        if paths_status == 200:
-            miles = (paths_data["paths"][0]["distance"])/1000/1.61
-            km = (paths_data["paths"][0]["distance"])/1000 
-            sec = int(paths_data["paths"][0]["time"]/1000%60)
-            min = int(paths_data["paths"][0]["time"]/1000/60%60)
-            hr = int(paths_data["paths"][0]["time"]/1000/60/60)
-            print("Distance Traveled: {0:.1f} miles / {1:.1f} km".format(miles, km)) 
-            print("Trip Duration: {0:02d}:{1:02d}:{2:02d}".format(hr, min, sec))
-            print("=================================================") 
-            for each in range(len(paths_data["paths"][0]["instructions"])):
-                path = paths_data["paths"][0]["instructions"][each]["text"]
-                distance = paths_data["paths"][0]["instructions"][each]["distance"]
-                print("{0} ( {1:.1f} km / {2:.1f} miles )".format(path, distance/1000,
-                distance/1000/1.61))
-            print("=============================================") 
+        lat1, lng1, loc1 = geocoding(start, key)
+        lat2, lng2, loc2 = geocoding(dest, key)
+
+        if not lat1 or not lat2:
+            st.error(f"Failed to geocode: {loc1}, {loc2}")
         else:
-            print("Error message: " + paths_data["message"])
-            print("*************************************************") 
+            op = "&point=" + str(lat1) + "%2C" + str(lng1)
+            dp = "&point=" + str(lat2) + "%2C" + str(lng2)
+            paths_url = route_url + urllib.parse.urlencode({"key": key, "vehicle": vehicle}) + op + dp
 
+            response = requests.get(paths_url)
+            data = response.json()
 
+            if response.status_code == 200:
+                km = data["paths"][0]["distance"] / 1000
+                miles = km / 1.60934
+                sec = int(data["paths"][0]["time"] / 1000 % 60)
+                mins = int(data["paths"][0]["time"] / 1000 / 60 % 60)
+                hrs = int(data["paths"][0]["time"] / 1000 / 60 / 60)
+
+                st.subheader(f"Route from {loc1} to {loc2} by {vehicle}")
+                st.info(f"**Distance:** {miles:.1f} miles / {km:.1f} km\n\n"
+                        f"**Duration:** {hrs:02d}:{mins:02d}:{sec:02d}")
+
+                st.subheader("🛣️ Turn-by-Turn Directions")
+                for step in data["paths"][0]["instructions"]:
+                    text = step["text"]
+                    dist = step["distance"] / 1000
+                    st.write(f"- {text} ({dist:.1f} km)")
+            else:
+                st.error("Routing Error: " + data.get("message", "Unknown error"))
