@@ -26,10 +26,10 @@ def geocoding(location, key):
         return None, None, "Error: " + json_data.get("message", "Unknown error")
 
 # --- Streamlit UI ---
-st.set_page_config(page_title="Graphhopper Route Finder", layout="wide")
+st.set_page_config(page_title="Graphhopper Route Finder", layout="centered")
 st.title("🚗 Graphhopper Route Finder")
 
-vehicle = st.selectbox("Choose vehicle:", ["car", "bike", "foot"])
+vehicle = st.selectbox("Choose vehicle:", ["Car", "Bike", "Foot"])
 start = st.text_input("Start Location", "")
 dest = st.text_input("Destination", "")
 
