@@ -1,4 +1,4 @@
-This is the start of the GraphHopper enhancement project.
+This is the start of the GraphHopper API call enhancement project.
 
 As of 9/23/2025 the project currently has a web-based GUI but most of the functions from the original activity are kept.
 
