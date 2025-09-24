@@ -4,12 +4,12 @@ import urllib.parse
 import folium
 from streamlit_folium import st_folium
 
-route_url = "https://graphhopper.com/api/1/route?"
-key = "571cae75-8241-46bb-af7f-62d0eaa4bc96"   # ⚠️ replace with your Graphhopper key
+route_url = "https://graphhopper.com/api/1/route?"  #static URL for making API calls for routes
+key = "571cae75-8241-46bb-af7f-62d0eaa4bc96"        # replace with your Graphhopper API key
 
 # --- Geocoding ---
 def geocoding(location, key):
-    geocode_url = "https://graphhopper.com/api/1/geocode?"
+    geocode_url = "https://graphhopper.com/api/1/geocode?" #static URL for making API calls for geocoding
     url = geocode_url + urllib.parse.urlencode({"q": location, "limit": "1", "key": key})
     replydata = requests.get(url)
     json_data = replydata.json()
@@ -39,15 +39,15 @@ if "route_data" not in st.session_state:
 
 # Button action
 if st.button("Get Route"):
-    if not start or not dest:
+    if not start or not dest:                               # Check if both inputs are provided         
         st.error("Please enter both start and destination.")
-    else:
+    else:                                                   # Geocode both locations
         lat1, lng1, loc1 = geocoding(start, key)
         lat2, lng2, loc2 = geocoding(dest, key)
 
-        if not lat1 or not lat2:
+        if not lat1 or not lat2:                           # Check if geocoding was successful      
             st.error(f"Failed to geocode: {loc1}, {loc2}")
-        else:
+        else:                                              # Construct routing API URL                               
             op = "&point=" + str(lat1) + "%2C" + str(lng1)
             dp = "&point=" + str(lat2) + "%2C" + str(lng2)
             params = {"key": key, "vehicle": vehicle, "points_encoded": "false"}  # decode polyline
@@ -56,14 +56,14 @@ if st.button("Get Route"):
             response = requests.get(paths_url)
             data = response.json()
 
-            if response.status_code == 200:
-                st.session_state.route_data = {
+            if response.status_code == 200:                  # Check if routing was successful
+                st.session_state.route_data = {             
                     "data": data,
                     "lat1": lat1, "lng1": lng1, "loc1": loc1,
                     "lat2": lat2, "lng2": lng2, "loc2": loc2,
                     "vehicle": vehicle
                 }
-            else:
+            else:                                       # Display error message                 
                 st.error("Routing Error: " + data.get("message", "Unknown error"))
 
 # Display results if available
@@ -77,6 +77,7 @@ if st.session_state.route_data:
     loc2 = st.session_state.route_data["loc2"]
     vehicle = st.session_state.route_data["vehicle"]
 
+    # --- Metric Conversion and Summary of Route ---
     km = data["paths"][0]["distance"] / 1000
     miles = km / 1.60934
     sec = int(data["paths"][0]["time"] / 1000 % 60)
@@ -90,6 +91,7 @@ if st.session_state.route_data:
     # --- Two-column responsive layout ---
     col1, col2 = st.columns([1, 2])  # left narrower than right
 
+    # --- Left Column: Step-by-step directions ---
     with col1:
         st.subheader("🛣️ Directions")
         for step in data["paths"][0]["instructions"]:
