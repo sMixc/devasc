@@ -7,7 +7,7 @@ from streamlit_folium import st_folium
 # --- CONFIG ---
 st.set_page_config(page_title="RouteMatch", layout="wide", initial_sidebar_state="expanded")
 route_url = "https://graphhopper.com/api/1/route?"
-key = "571cae75-8241-46bb-af7f-62d0eaa4bc96" 
+key = "api_key" 
 
 # --- Geocoding Function ---
 def geocoding(location, key):
