@@ -34,7 +34,7 @@ jobs:
       # Step 4: Lint code for syntax errors
       - name: Run syntax and lint check
         run: |
-          python -m py_compile app.py
+          python -m py_compile graphhopper_project.py
 
       # Step 5: Run basic Streamlit health test
       - name: Run Streamlit import test
