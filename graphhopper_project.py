@@ -2,12 +2,13 @@ import streamlit as st
 import requests
 import urllib.parse
 import folium
+import os
 from streamlit_folium import st_folium
 
 # --- CONFIG ---
 st.set_page_config(page_title="RouteMatch", layout="wide", initial_sidebar_state="expanded")
 route_url = "https://graphhopper.com/api/1/route?"
-key = "api_key" 
+key = os.getenv("GRAPH_HOPPER_KEY", "")
 
 # --- Geocoding Function ---
 def geocoding(location, key):

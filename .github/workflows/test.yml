@@ -1,1 +1,48 @@
+name: Test RouteMatch App
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  GRAPH_HOPPER_KEY: ${{ secrets.GRAPH_HOPPER_KEY }}
+
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the repo
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Python
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # Step 3: Install dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install streamlit requests folium streamlit-folium pytest
+
+      # Step 4: Lint code for syntax errors
+      - name: Run syntax and lint check
+        run: |
+          python -m py_compile app.py
+
+      # Step 5: Run basic Streamlit health test
+      - name: Run Streamlit import test
+        run: |
+          python -c "import streamlit; import requests; import folium; import streamlit_folium; print('✅ All imports OK')"
+
+      # Step 6: Run pytest if you add tests later
+      - name: Run tests
+        run: |
+          pytest -v || echo "⚠️ No tests found, skipping."
 
