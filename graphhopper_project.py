@@ -63,7 +63,7 @@ init_db()
 # --- CONFIG ---
 st.set_page_config(page_title="RouteMatch", layout="wide", initial_sidebar_state="expanded")
 route_url = "https://graphhopper.com/api/1/route?"
-key = "571cae75-8241-46bb-af7f-62d0eaa4bc96"
+key = os.environ['GRAPH_HOPPER_KEY']
 
 # --- Geocoding Function ---
 def geocoding(location, key):
@@ -447,7 +447,7 @@ if st.session_state.route_data:
 # --- Map Display ---
 map_container = st.container()
 with map_container:
-    TOMTOM_API_KEY = "Yrw5JW9ERPwOzQezCflFMyP4esoOAYEQ"
+    TOMTOM_API_KEY = os.environ["TOMTOM_KEY"]
 
     if st.session_state.route_data:
         route_info = st.session_state.route_data
