@@ -34,9 +34,6 @@ jobs:
       - name: Run tests
         run: pytest -v || echo "⚠️ No tests found, skipping."
 
-  # -------------------------------------------------------
-  # Optional automated merge (if you want dev → main merge)
-  # -------------------------------------------------------
   merge:
     needs: test
     runs-on: ubuntu-latest
