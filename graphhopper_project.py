@@ -62,7 +62,7 @@ init_db()
 # --- CONFIG ---
 st.set_page_config(page_title="RouteMatch", layout="wide", initial_sidebar_state="expanded")
 route_url = "https://graphhopper.com/api/1/route?"
-key = os.environ['GRAPH_HOPPER_KEY']
+key = "571cae75-8241-46bb-af7f-62d0eaa4bc96"
 
 # --- Geocoding Function ---
 def geocoding(location, key):
@@ -446,22 +446,78 @@ if st.session_state.route_data:
 # --- Map Display ---
 map_container = st.container()
 with map_container:
+    TOMTOM_API_KEY = "Yrw5JW9ERPwOzQezCflFMyP4esoOAYEQ"
+
     if st.session_state.route_data:
         route_info = st.session_state.route_data
-        data = route_info["data"] if "data" in route_info else route_info
+        data = route_info["data"]
         lat1, lng1 = route_info["lat1"], route_info["lng1"]
         lat2, lng2 = route_info["lat2"], route_info["lng2"]
         coords = data["paths"][0]["points"]["coordinates"]
 
+        # Base map
         m = folium.Map(location=[lat1, lng1], zoom_start=13)
-        folium.PolyLine(locations=[(lat, lon) for lon, lat in coords], color="blue", weight=5, opacity=0.8).add_to(m)
-        folium.Marker([lat1, lng1], popup=f"Start: {route_info['loc1']}", icon=folium.Icon(color="green", icon="play")).add_to(m)
-        folium.Marker([lat2, lng2], popup=f"Destination: {route_info['loc2']}", icon=folium.Icon(color="red", icon="stop")).add_to(m)
+
+        # Draw route polyline
+        folium.PolyLine(
+            locations=[(lat, lon) for lon, lat in coords],
+            color="blue",
+            weight=5,
+            opacity=0.8
+        ).add_to(m)
+
+        # Add start and destination markers
+        folium.Marker(
+            [lat1, lng1],
+            popup=f"Start: {route_info['loc1']}",
+            icon=folium.Icon(color="green", icon="play")
+        ).add_to(m)
+
+        folium.Marker(
+            [lat2, lng2],
+            popup=f"Destination: {route_info['loc2']}",
+            icon=folium.Icon(color="red", icon="stop")
+        ).add_to(m)
+
+        # Fit map bounds to route
         m.fit_bounds([(lat, lon) for lon, lat in coords])
+
+        # ✅ Add optional TomTom live traffic overlay
+        if TOMTOM_API_KEY:
+            folium.TileLayer(
+                tiles=f"https://api.tomtom.com/traffic/map/4/tile/flow/relative/{{z}}/{{x}}/{{y}}.png?key={TOMTOM_API_KEY}",
+                attr="TomTom Traffic",
+                name="Traffic Flow",
+                overlay=True,
+                control=True,
+                opacity=0.8
+            ).add_to(m)
+
+            # Add a toggle control for traffic
+            folium.LayerControl().add_to(m)
+
+        # Render map in Streamlit
         st_folium(m, width="100%", height=650, key="route_map")
+
     else:
+        # Default view (no route yet)
         m = folium.Map(location=[14.5995, 120.9842], zoom_start=12)
+
+        # ✅ Still add traffic overlay even without a route
+        TOMTOM_API_KEY = os.getenv("TOMTOM_KEY", "")
+        if TOMTOM_API_KEY:
+            folium.TileLayer(
+                tiles=f"https://api.tomtom.com/traffic/map/4/tile/flow/relative/{{z}}/{{x}}/{{y}}.png?key={TOMTOM_API_KEY}",
+                attr="TomTom Traffic",
+                name="Traffic Flow",
+                overlay=True,
+                control=True,
+                opacity=0.8
+            ).add_to(m)
+            folium.LayerControl().add_to(m)
+
         st_folium(m, width="100%", height=650, key="default_map")
+
 
 # --- Saved Routes Dropdown (below the map) ---
 def delete_route_by_id(route_id):
