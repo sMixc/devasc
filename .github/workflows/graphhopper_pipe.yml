@@ -1,5 +1,8 @@
 name: CI/CD for RouteMatch
 
+permissions:
+  contents: write
+
 env:
   GRAPH_HOPPER_KEY: ${{ secrets.GRAPH_HOPPER_KEY }}
   TOMTOM_KEY: ${{ secrets.TOMTOM_KEY }}
