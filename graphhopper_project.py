@@ -63,14 +63,18 @@ init_db()
 # --- CONFIG ---
 st.set_page_config(page_title="RouteMatch", layout="wide", initial_sidebar_state="expanded")
 route_url = "https://graphhopper.com/api/1/route?"
-key = os.environ['GRAPH_HOPPER_KEY']
+key = st.secrets["graph_hopper_key"]  # Set your GraphHopper API key in environment variable
+
 
 # --- Geocoding Function ---
-def geocoding(location, key):
+def geocoding(location, country, key):
+    """Geocode a location within a specified country using GraphHopper API."""
     geocode_url = "https://graphhopper.com/api/1/geocode?"
-    url = geocode_url + urllib.parse.urlencode({"q": location, "limit": "1", "key": key})
+    query = f"{location}, {country}"
+    url = geocode_url + urllib.parse.urlencode({"q": query, "limit": "1", "key": key})
     replydata = requests.get(url)
     json_data = replydata.json()
+
     if replydata.status_code == 200 and len(json_data["hits"]) != 0:
         hit = json_data["hits"][0]
         lat, lng = hit["point"]["lat"], hit["point"]["lng"]
@@ -81,6 +85,7 @@ def geocoding(location, key):
         return lat, lng, new_loc
     else:
         return None, None, "Error: " + json_data.get("message", "Unknown error")
+
 
 # --- Session State ---
 if "route_data" not in st.session_state:
@@ -283,24 +288,45 @@ st.markdown(
 )
 
 with st.form("route_form", clear_on_submit=False):
-
-    col1, col2, col3, col4 = st.columns([1.5, 3, 3, 1.5])
+    col1, col2, col3, col4, col5 = st.columns([1.5, 2, 3, 3, 1.5])
     
     with col1:
         vehicle = st.selectbox("🚗 Mode", ["car", "bike", "foot"], key="vehicle_form")
 
     with col2:
-        start = st.text_input("📍 Start Location", key="start", placeholder="starting point")
+        country = st.selectbox(
+            "🌍 Country",
+            [
+                "Philippines",
+                "United States",
+                "Canada",
+                "United Kingdom",
+                "Australia",
+                "Germany",
+                "France",
+                "Japan",
+                "Singapore",
+                "India",
+                "China",
+                "Taiwan",
+            ],
+            index=0,
+            key="country_form"
+        )
 
     with col3:
-        dest = st.text_input("🏁 Destination", key="dest", placeholder="destination")
+        start = st.text_input("📍 Start City or Address", key="start", placeholder="e.g. Quezon City")
 
     with col4:
+        dest = st.text_input("🏁 Destination City or Address", key="dest", placeholder="e.g. Makati")
+
+    with col5:
         st.markdown(
             '<div style="font-size: 0.875rem; font-weight: 500; line-height: 1.6; color: white; margin-bottom: 4px;">&nbsp;</div>',
             unsafe_allow_html=True
         )
         submitted = st.form_submit_button("🔍 Match Route", use_container_width=True)
+
 
     
     if submitted:
@@ -308,8 +334,9 @@ with st.form("route_form", clear_on_submit=False):
             st.error("Please enter both start and destination.")
         else:
             with st.spinner("Finding route..."):
-                lat1, lng1, loc1 = geocoding(start, key)
-                lat2, lng2, loc2 = geocoding(dest, key)
+                lat1, lng1, loc1 = geocoding(start, country, key)
+                lat2, lng2, loc2 = geocoding(dest, country, key)
+
 
                 if not lat1 or not lat2:
                     st.error(f"Failed to geocode locations")
@@ -447,7 +474,7 @@ if st.session_state.route_data:
 # --- Map Display ---
 map_container = st.container()
 with map_container:
-    TOMTOM_API_KEY = os.environ["TOMTOM_KEY"]
+    TOMTOM_API_KEY = st.secrets["tomtom_key"]  # Replace with your TomTom API key
 
     if st.session_state.route_data:
         route_info = st.session_state.route_data
@@ -505,7 +532,7 @@ with map_container:
         m = folium.Map(location=[14.5995, 120.9842], zoom_start=12)
 
         # ✅ Still add traffic overlay even without a route
-        TOMTOM_API_KEY = os.getenv("TOMTOM_KEY", "")
+        TOMTOM_API_KEY = "Yrw5JW9ERPwOzQezCflFMyP4esoOAYEQ"  # Replace with your TomTom API key
         if TOMTOM_API_KEY:
             folium.TileLayer(
                 tiles=f"https://api.tomtom.com/traffic/map/4/tile/flow/relative/{{z}}/{{x}}/{{y}}.png?key={TOMTOM_API_KEY}",
