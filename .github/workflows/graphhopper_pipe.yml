@@ -52,6 +52,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git fetch origin main
-          git checkout main
-          git merge --no-ff origin/dev -m "Auto-merge from dev to main after passing tests"
+          git checkout main || git checkout -b main
+          git merge --allow-unrelated-histories --no-ff origin/dev -m "Auto-merge from dev to main after passing tests"
           git push origin main
+
