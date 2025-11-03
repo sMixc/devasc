@@ -1,4 +1,6 @@
 name: CI/CD for RouteMatch
+env:
+      GRAPH_HOPPER_KEY: ${{secrets.GRAPH_HOPPER_KEY}}
 
 on:
   push:
@@ -9,8 +11,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      GRAPH_HOPPER_KEY: ${{ secrets.GRAPH_HOPPER_KEY }}
+    
 
     steps:
       - name: Checkout repository

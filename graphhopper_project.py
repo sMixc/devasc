@@ -3,12 +3,66 @@ import requests
 import urllib.parse
 import folium
 import os
+import json
 from streamlit_folium import st_folium
+import sqlite3
+
+# --- Database Setup ---
+DB_FILE = "routes.db"
+
+def init_db():
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS saved_routes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            start_location TEXT,
+            destination TEXT,
+            vehicle TEXT,
+            distance REAL,
+            duration REAL,
+            data TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+def save_route_to_db(start, dest, vehicle, distance, duration, data):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute(
+        "INSERT INTO saved_routes (start_location, destination, vehicle, distance, duration, data) VALUES (?, ?, ?, ?, ?, ?)",
+        (start, dest, vehicle, distance, duration, json.dumps(data))
+    )
+    conn.commit()
+    conn.close()
+
+def load_routes_from_db():
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("SELECT id, start_location, destination, vehicle, distance, duration FROM saved_routes")
+    rows = c.fetchall()
+    conn.close()
+    return rows
+
+def get_route_data_by_id(route_id):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("SELECT data FROM saved_routes WHERE id = ?", (route_id,))
+    row = c.fetchone()
+    conn.close()
+    if row:
+        return json.loads(row[0])
+    return None
+
+# Initialize database
+init_db()
+
 
 # --- CONFIG ---
 st.set_page_config(page_title="RouteMatch", layout="wide", initial_sidebar_state="expanded")
 route_url = "https://graphhopper.com/api/1/route?"
-key = os.getenv("GRAPH_HOPPER_KEY", "")
+key = os.environ['GRAPH_HOPPER_KEY']
 
 # --- Geocoding Function ---
 def geocoding(location, key):
@@ -330,6 +384,23 @@ if st.session_state.route_data:
             </div>
         """, unsafe_allow_html=True)
         
+        # Route summary
+        st.markdown(f"""
+            <div class="route-summary">
+                <h4 style="color: #666;">📍 {loc1}</h4>
+                <h4 style="color: #666;">🏁 {loc2}</h4>
+                <p style="color: #666;"><strong>Mode:</strong> {vehicle.title()}</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        
+        # --- Save to SQLite Button ---
+        if st.button("💾 Save This Route"):
+            save_route_to_db(loc1, loc2, vehicle, km, total_seconds, st.session_state.route_data)
+            st.success("✅ Route saved to database!")
+
+
+        
         # Distance and duration
         col1, col2 = st.columns(2)
         with col1:
@@ -353,13 +424,31 @@ if st.session_state.route_data:
                 """, unsafe_allow_html=True)
         else:
             st.write("No detailed directions available")
+            
+        st.markdown("---")
+        st.markdown("### 💼 Saved Routes")
+
+        saved_routes = load_routes_from_db()
+        if saved_routes:
+            for route_id, start, dest, veh, dist, dur in saved_routes:
+                hrs = int(dur // 3600)
+                mins = int((dur % 3600) // 60)
+                st.markdown(f"**{start} ➜ {dest}** ({veh}) — {dist:.1f} km, {hrs:02d}:{mins:02d}")
+                if st.button(f"🗺️ Load Route {route_id}", key=f"load_{route_id}"):
+                    route_data = get_route_data_by_id(route_id)
+                    if route_data:
+                        st.session_state.route_data = route_data
+                        st.rerun()
+        else:
+            st.info("No saved routes yet.")
+
 
 # --- Map Display ---
 map_container = st.container()
 with map_container:
     if st.session_state.route_data:
         route_info = st.session_state.route_data
-        data = route_info["data"]
+        data = route_info["data"] if "data" in route_info else route_info
         lat1, lng1 = route_info["lat1"], route_info["lng1"]
         lat2, lng2 = route_info["lat2"], route_info["lng2"]
         coords = data["paths"][0]["points"]["coordinates"]
@@ -373,3 +462,92 @@ with map_container:
     else:
         m = folium.Map(location=[14.5995, 120.9842], zoom_start=12)
         st_folium(m, width="100%", height=650, key="default_map")
+
+# --- Saved Routes Dropdown (below the map) ---
+def delete_route_by_id(route_id):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("DELETE FROM saved_routes WHERE id = ?", (route_id,))
+    conn.commit()
+    conn.close()
+
+# Load saved routes for the dropdown
+saved_routes = load_routes_from_db()  # returns list of tuples (id, start, dest, veh, dist, dur)
+
+if saved_routes:
+    # Build options and a mapping from label -> id
+    options = []
+    label_to_id = {}
+    for route_id, start, dest, veh, dist, dur in saved_routes:
+        hrs = int(dur // 3600)
+        mins = int((dur % 3600) // 60)
+        label = f"{start} ➜ {dest} ({veh}) — {dist:.1f} km, {hrs:02d}:{mins:02d}"
+        options.append(label)
+        label_to_id[label] = route_id
+
+    st.markdown("---")
+    st.markdown("### 💾 Saved routes")
+
+    # Dropdown
+    chosen_label = st.selectbox("Choose a saved route to preview or load:", ["-- Select a saved route --"] + options, key="saved_route_select")
+
+    if chosen_label and chosen_label != "-- Select a saved route --":
+        chosen_id = label_to_id[chosen_label]
+        # fetch the full route data (the JSON you stored)
+        route_data = get_route_data_by_id(chosen_id)
+
+        if route_data:
+            # route_data might be either the full 'route_info' dict or just GraphHopper response
+            data = route_data["data"] if isinstance(route_data, dict) and "data" in route_data else route_data
+
+            # Show a lightweight preview: start/dest/metrics
+            try:
+                km = data["paths"][0]["distance"] / 1000
+                base_seconds = data["paths"][0]["time"] / 1000
+                total_seconds = base_seconds * 1.2 + 600
+                hrs = int(total_seconds // 3600)
+                mins = int((total_seconds % 3600) // 60)
+                sec = int(total_seconds % 60)
+                st.write(f"**Distance:** {km:.1f} km")
+                st.write(f"**Estimated duration:** {hrs:02d}:{mins:02d}:{sec:02d}")
+            except Exception:
+                st.write("Preview: route metrics unavailable")
+
+            # Two action buttons: Load and Delete
+            col_load, col_del = st.columns([1, 1])
+            with col_load:
+                if st.button("🗺️ Load selected route", key=f"load_selected_{chosen_id}"):
+                    # When loading, we set session_state.route_data to the same shape your app expects.
+                    # If the stored item is already a 'route_info' dict (has lat/lng etc.) use it directly,
+                    # otherwise wrap the GraphHopper response into the expected structure as best as possible.
+                    if isinstance(route_data, dict) and ("lat1" in route_data or "loc1" in route_data):
+                        st.session_state.route_data = route_data
+                    else:
+                        # attempt to reconstruct minimal route_info
+                        # try to extract first path coords or at least keep the data
+                        lat1 = route_data.get("paths", [{}])[0].get("points", {}).get("coordinates", [[None, None]])[0][1] if isinstance(route_data, dict) else None
+                        lng1 = route_data.get("paths", [{}])[0].get("points", {}).get("coordinates", [[None, None]])[0][0] if isinstance(route_data, dict) else None
+                        st.session_state.route_data = {
+                            "data": route_data,
+                            "lat1": lat1 or 0,
+                            "lng1": lng1 or 0,
+                            "loc1": "Saved start",
+                            "lat2": 0,
+                            "lng2": 0,
+                            "loc2": "Saved dest",
+                            "vehicle": "car"
+                        }
+                    st.success("Loaded saved route into map")
+                    st.rerun()
+
+            with col_del:
+                if st.button("🗑️ Delete selected route", key=f"delete_selected_{chosen_id}"):
+                    delete_route_by_id(chosen_id)
+                    st.success("Deleted saved route")
+                    st.rerun()
+
+        else:
+            st.error("Failed to load saved route data.")
+else:
+    st.markdown("---")
+    st.info("No saved routes yet. Use the sidebar 'Save This Route' button to persist routes.")
