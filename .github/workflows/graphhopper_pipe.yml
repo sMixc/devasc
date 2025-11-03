@@ -28,7 +28,7 @@ jobs:
           pip install -r requirements.txt || pip install streamlit requests folium streamlit-folium pytest
 
       - name: Run syntax check
-        run: python -m py_compile app.py
+        run: python -m py_compile graphhopper_project.py
 
       - name: Run tests
         run: pytest -v || echo "⚠️ No tests found, skipping."
