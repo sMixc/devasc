@@ -1,6 +1,7 @@
 name: CI/CD for RouteMatch
 env:
       GRAPH_HOPPER_KEY: ${{secrets.GRAPH_HOPPER_KEY}}
+      TOMTOM_KEY: ${{secrets.TOMTOM_KEY}}
 
 on:
   push:
